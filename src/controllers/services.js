@@ -143,87 +143,56 @@ export const patchServicesController = async (req, res, next) => {
 		const { body, files = [], params } = req;
 
 		// 1) existingImgs з фронта
-		let existingFromBody = [];
-		if (body.existingImgs) {
-			try {
-				existingFromBody =
-					typeof body.existingImgs === "string"
-						? JSON.parse(body.existingImgs)
-						: body.existingImgs;
-				if (!Array.isArray(existingFromBody)) existingFromBody = [];
-			} catch {
-				existingFromBody = [];
-			}
+		let existingImgs = [];
+
+		try {
+			existingImgs =
+				typeof body.existingImgs === "string"
+					? JSON.parse(body.existingImgs)
+					: body.existingImgs;
+
+			if (!Array.isArray(existingImgs)) existingImgs = [];
+		} catch {
+			existingImgs = [];
 		}
 
 		// 2) Зберігаємо нові файли
-		const savedPaths = [];
+		const newFiles = [];
+
 		for (const f of files) {
-			const path =
+			const savedPath =
 				process.env.ENABLE_CLOUDINARY === "true"
 					? await saveFileToCloudinary(f)
 					: await saveFileToUploadDir(f);
-			savedPaths.push(path);
+
+			newFiles.push(savedPath);
 		}
 
-		// 3) Формуємо фінальний масив за позиціями
-		const MAX_IMAGES = 4;
-		const finalImgs = [];
-		let newFileIndex = 0;
+		// 3) Формуємо фінальний масив
+		// старі залишаються, нові додаються в кінець
+		const finalImgs = [...existingImgs, ...newFiles];
 
-		for (
-			let i = 0;
-			i < existingFromBody.length && finalImgs.length < MAX_IMAGES;
-			i++
-		) {
-			if (existingFromBody[i]) {
-				finalImgs.push(existingFromBody[i]);
-			} else if (savedPaths[newFileIndex]) {
-				finalImgs.push(savedPaths[newFileIndex]);
-				newFileIndex++;
-			} else {
-				finalImgs.push(null); // якщо нічого немає
-			}
-		}
-
-		// додаємо лишні нові файли, якщо вони залишились
-		while (newFileIndex < savedPaths.length && finalImgs.length < MAX_IMAGES) {
-			finalImgs.push(savedPaths[newFileIndex]);
-			newFileIndex++;
-		}
-
-		// 4) Payload для оновлення
+		// 4) payload
 		const payload = {
-			ua: {
-				title: body.titleUa,
-				subTitle: body.subTitleUa,
-				article: body.articleUa,
-			},
-			en: {
-				title: body.titleEn,
-				subTitle: body.subTitleEn,
-				article: body.articleEn,
-			},
 			pl: {
-				title: body.titlePl,
-				subTitle: body.subTitlePl,
-				article: body.articlePl,
+				name: body.namePl,
+				description: body.descriptionPl,
 			},
 			de: {
-				title: body.titleDe,
-				subTitle: body.subTitleDe,
-				article: body.articleDe,
+				name: body.nameDe,
+				description: body.descriptionDe,
 			},
+			price: Number(body.price),
 			type: body.type,
 			imgs: finalImgs,
 		};
 
-		const doc = await updateServicesService(params.id, payload);
+		const updated = await updateServicesService(params.id, payload);
 
 		res.status(200).json({
 			status: 200,
-			message: "Updated services successfully",
-			data: doc,
+			message: "Updated successfully",
+			data: updated,
 		});
 	} catch (error) {
 		next(error);
