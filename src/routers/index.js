@@ -4,6 +4,7 @@ import authRouter from "./auth.js";
 import mainRouter from "./main.js";
 import aboutRouter from "./about.js";
 import servicesRouter from "./services.js";
+import articlesRouter from "./articles.js";
 import galleryRouter from "./gallery.js";
 import { authenticate } from "../middlewares/authenticate.js";
 
@@ -20,6 +21,8 @@ router.use("/contacts", contactsRouter);
 router.use("/about", aboutRouter);
 
 router.use("/services", servicesRouter);
+
+router.use("/articles", articlesRouter);
 
 router.use("/gallery", galleryRouter);
 
