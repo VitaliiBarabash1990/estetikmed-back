@@ -20,7 +20,7 @@ const setupServer = () => {
 	// app.use(cors());
 	const allowedOrigins = [
 		"http://localhost:3000",
-		"https://gloria-life.vercel.app",
+		"https://estetikmed.vercel.app",
 	];
 
 	app.use(
