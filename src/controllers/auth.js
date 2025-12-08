@@ -77,13 +77,33 @@ export const logoutUserController = async (req, res) => {
 };
 
 export const sendEmailController = async (req, res) => {
-	console.log(req.body);
-	await requestSendBody(req.body); // передаємо весь об'єкт
-	res.json({
-		message: "Order was successfully sent to email!",
-		status: 200,
-		data: {},
-	});
+	try {
+		const { name, phone, email, message } = req.body;
+		const file = req.file;
+
+		if (!name || !phone || !email || !message) {
+			return res.status(400).json({
+				message: "Поля name, phone, email, message є обов'язковими",
+				status: 400,
+			});
+		}
+
+		await requestSendBody({
+			name,
+			phone,
+			email,
+			message,
+			file,
+		});
+
+		res.json({
+			message: "Order was successfully sent to email!",
+			status: 200,
+		});
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "Server error" });
+	}
 };
 
 export const sendTelegramController = async (req, res) => {

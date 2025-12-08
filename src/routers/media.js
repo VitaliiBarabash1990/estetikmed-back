@@ -2,23 +2,23 @@ import express from "express";
 import { ctrlWrapper } from "../utils/ctrlWrapper.js";
 import { upload } from "../middlewares/multer.js";
 import {
-	getGalleryController,
-	addImagesController,
-	deleteImageByUrlController,
-} from "../controllers/gallery.js";
+	getMediaController,
+	addMediaController,
+	deleteMediaByUrlController,
+} from "../controllers/media.js";
 
 const router = express.Router();
 
-router.get("/", ctrlWrapper(getGalleryController));
+router.get("/", ctrlWrapper(getMediaController));
 
 // Додати картинки (multipart files або body.imgs (URL-и))
 router.patch(
 	"/:type",
 	upload.array("imgs", 50),
-	ctrlWrapper(addImagesController)
+	ctrlWrapper(addMediaController)
 );
 
 // Видалити по URL (body.urls / body.url або query ?url=)
-router.delete("/:type/image", ctrlWrapper(deleteImageByUrlController));
+router.delete("/:type/image", ctrlWrapper(deleteMediaByUrlController));
 
 export default router;

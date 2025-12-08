@@ -1,17 +1,17 @@
 import createHttpError from "http-errors";
 import { env } from "../utils/env.js";
 import { saveFileToUploadDir } from "../utils/saveFileToUploadDir.js";
-import { saveFileToCloudinary } from "../utils/saveFileToCloudinary.js";
 import {
-	getAllGalleryService,
-	getGalleryByTypeService,
-	addImagesToGalleryService,
-	removeImagesByUrlsService,
-} from "../services/gallery.js";
+	getMediaByTypeService,
+	addMediaToGalleryService,
+	removeMediaByUrlsService,
+	getAllMediaService,
+} from "../services/media.js";
+import { saveFileToCloudinaryModified } from "../utils/saveFileToCloudinaryModified.js";
 
 /* GET /gallery */
-export const getGalleryController = async (req, res) => {
-	const galleries = await getAllGalleryService();
+export const getMediaController = async (req, res) => {
+	const galleries = await getAllMediaService();
 	res.json({ status: 200, message: "Found galleries", data: galleries });
 };
 
@@ -21,7 +21,10 @@ export const getGalleryController = async (req, res) => {
      - files (multipart form, поле 'imgs') — 1 або багато файлів
      - body.imgs — масив URL-ів або одна URL-строка
 */
-export const addImagesController = async (req, res, next) => {
+export const addMediaController = async (req, res, next) => {
+	console.log("DataUploadFiles", req.files);
+	console.log("DataUploadImgs", req.imgs);
+	console.log("DataUpload", req);
 	try {
 		const { params, body, files } = req;
 		const { type } = params;
@@ -44,14 +47,14 @@ export const addImagesController = async (req, res, next) => {
 		if (files && files.length > 0) {
 			savedPaths =
 				env("ENABLE_CLOUDINARY") === "true"
-					? await Promise.all(files.map(saveFileToCloudinary))
+					? await Promise.all(files.map(saveFileToCloudinaryModified))
 					: await Promise.all(files.map(saveFileToUploadDir));
 		}
 
 		const newImgs = [...imgsFromBody, ...savedPaths];
 		if (newImgs.length === 0) {
 			// нічого додавати — повертаємо поточний документ
-			const current = await getGalleryByTypeService(type);
+			const current = await getMediaByTypeService(type);
 			return res.json({
 				status: 200,
 				message: "No new images provided",
@@ -59,7 +62,7 @@ export const addImagesController = async (req, res, next) => {
 			});
 		}
 
-		const updated = await addImagesToGalleryService(type, newImgs);
+		const updated = await addMediaToGalleryService(type, newImgs);
 		res.json({ status: 200, message: "Images added", data: updated });
 	} catch (err) {
 		next(err);
@@ -72,7 +75,7 @@ export const addImagesController = async (req, res, next) => {
      - query: ?url=<encodedUrl>
      - body: { url: "..." } або { urls: ["...","..."] }
 */
-export const deleteImageByUrlController = async (req, res, next) => {
+export const deleteMediaByUrlController = async (req, res, next) => {
 	try {
 		const { type } = req.params;
 		let urls = [];
@@ -96,7 +99,7 @@ export const deleteImageByUrlController = async (req, res, next) => {
 			throw createHttpError(400, "Provide 'url' or 'urls' to delete");
 		}
 
-		const updated = await removeImagesByUrlsService(type, urls);
+		const updated = await removeMediaByUrlsService(type, urls);
 		if (!updated) throw createHttpError(404, "Gallery not found");
 
 		// Примітка: тут НЕ видаляються файли з Cloudinary/диску. Якщо потрібно — дописати видалення по public_id.

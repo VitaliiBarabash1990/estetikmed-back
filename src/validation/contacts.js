@@ -60,7 +60,19 @@ export const updateContactSchema = Joi.object({
 export const createArticleSchema = Joi.object({
 	titlePl: Joi.string().required(),
 	titleDe: Joi.string().required(),
-	articlePl: Joi.string().allow(""),
-	articleDe: Joi.string().allow(""),
+	articlePl: Joi.string().required(),
+	articleDe: Joi.string().required(),
+	img: Joi.string().uri(),
+});
+
+export const createReviewsSchema = Joi.object({
+	namePl: Joi.string().required(),
+	nameDe: Joi.string().required(),
+	servicesPl: Joi.string().required(),
+	servicesDe: Joi.string().required(),
+	reviewsPl: Joi.string().required(),
+	reviewsDe: Joi.string().required(),
+	answersPl: Joi.string().required(),
+	answersDe: Joi.string().required(),
 	img: Joi.string().uri(),
 });

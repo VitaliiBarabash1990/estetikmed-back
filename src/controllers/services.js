@@ -199,21 +199,52 @@ export const patchServicesController = async (req, res, next) => {
 	}
 };
 
-export const requestSendBody = async ({ name, phone }) => {
+export const requestSendBody = async ({
+	name,
+	phone,
+	email,
+	message,
+	file,
+}) => {
 	const templatePath = path.join(TEMPLATES_DIR, "order-confirmation.html");
-
-	const templateSource = (await fs.readFile(templatePath)).toString();
-
+	const templateSource = await fs.readFile(templatePath, "utf-8");
 	const template = handlebars.compile(templateSource);
-	const html = template({
-		name: name,
-		phone: phone,
-	});
 
-	await sendEmail({
-		from: env("SMTP_FROM"),
-		to: env("SMTP_FROM"),
-		subject: "Ваш новый клиент!",
-		html,
-	});
+	const html = template({ name, phone, email, message });
+
+	let attachments = [];
+
+	let tempFilePath = null;
+
+	if (file) {
+		tempFilePath = file.path;
+
+		const fileBuffer = await fs.readFile(tempFilePath);
+
+		attachments.push({
+			filename: file.originalname,
+			content: fileBuffer,
+			contentType: file.mimetype,
+		});
+	}
+
+	try {
+		await sendEmail({
+			from: env("SMTP_FROM"),
+			to: env("SMTP_FROM"),
+			subject: "Новый заказ с сайта estetic-med!",
+			html,
+			attachments,
+		});
+	} finally {
+		// Видаляємо файл у будь-якому випадку (успіх / помилка)
+		if (tempFilePath) {
+			try {
+				await fs.unlink(tempFilePath);
+				console.log("Temporary file removed:", tempFilePath);
+			} catch (err) {
+				console.warn("Failed to delete temp file:", err);
+			}
+		}
+	}
 };

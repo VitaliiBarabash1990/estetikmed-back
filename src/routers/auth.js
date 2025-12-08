@@ -9,6 +9,7 @@ import {
 	registerUserController,
 } from "../controllers/auth.js";
 import { validateBody } from "../middlewares/validateBody.js";
+import { upload } from "../middlewares/multerSend.js";
 
 const router = express.Router();
 const jsonParser = express.json();
@@ -28,7 +29,11 @@ router.post(
 
 router.post("/logout", ctrlWrapper(logoutUserController));
 
-router.post("/send-order", jsonParser, ctrlWrapper(sendEmailController));
+router.post(
+	"/send-email",
+	upload.single("file"),
+	ctrlWrapper(sendEmailController)
+);
 
 router.post(
 	"/send-order-telegram",
