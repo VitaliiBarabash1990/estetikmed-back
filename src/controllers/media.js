@@ -1,90 +1,91 @@
+// controllers/media.js
 import createHttpError from "http-errors";
 import { env } from "../utils/env.js";
 import { saveFileToUploadDir } from "../utils/saveFileToUploadDir.js";
+import { saveFileToCloudinaryModified } from "../utils/saveFileToCloudinaryModified.js";
 import {
 	getMediaByTypeService,
 	addMediaToGalleryService,
 	removeMediaByUrlsService,
 	getAllMediaService,
 } from "../services/media.js";
-import { saveFileToCloudinaryModified } from "../utils/saveFileToCloudinaryModified.js";
+import { mapMediaToClient } from "../utils/mapMediaToClient.js";
 
-/* GET /gallery */
-export const getMediaController = async (req, res) => {
-	const galleries = await getAllMediaService();
-	res.json({ status: 200, message: "Found galleries", data: galleries });
-};
-
-/* PATCH /gallery/:type
-   Додає нові зображення в існуючий (або створює, якщо немає).
-   Підтримує:
-     - files (multipart form, поле 'imgs') — 1 або багато файлів
-     - body.imgs — масив URL-ів або одна URL-строка
-*/
-export const addMediaController = async (req, res, next) => {
-	console.log("DataUploadFiles", req.files);
-	console.log("DataUploadImgs", req.imgs);
-	console.log("DataUpload", req);
+export const getMediaController = async (req, res, next) => {
 	try {
-		const { params, body, files } = req;
-		const { type } = params;
-		if (!type) throw createHttpError(400, "Type is required in params");
-
-		// imgs з тіла (URL-и)
-		let imgsFromBody = [];
-		if (body.imgs) {
-			try {
-				imgsFromBody =
-					typeof body.imgs === "string" ? JSON.parse(body.imgs) : body.imgs;
-				if (!Array.isArray(imgsFromBody)) imgsFromBody = [imgsFromBody];
-			} catch {
-				imgsFromBody = [body.imgs];
-			}
-		}
-
-		// збереження файлів (якщо є)
-		let savedPaths = [];
-		if (files && files.length > 0) {
-			savedPaths =
-				env("ENABLE_CLOUDINARY") === "true"
-					? await Promise.all(files.map(saveFileToCloudinaryModified))
-					: await Promise.all(files.map(saveFileToUploadDir));
-		}
-
-		const newImgs = [...imgsFromBody, ...savedPaths];
-		if (newImgs.length === 0) {
-			// нічого додавати — повертаємо поточний документ
-			const current = await getMediaByTypeService(type);
-			return res.json({
-				status: 200,
-				message: "No new images provided",
-				data: current,
-			});
-		}
-
-		const updated = await addMediaToGalleryService(type, newImgs);
-		res.json({ status: 200, message: "Images added", data: updated });
+		const galleries = await getAllMediaService();
+		res.json({
+			status: 200,
+			message: "Found galleries",
+			data: galleries.map(mapMediaToClient),
+		});
 	} catch (err) {
 		next(err);
 	}
 };
 
-/* DELETE /gallery/:type/image
-   Видаляє одне або кілька зображень по URL. 
-   Підтримує:
-     - query: ?url=<encodedUrl>
-     - body: { url: "..." } або { urls: ["...","..."] }
-*/
+export const addMediaController = async (req, res, next) => {
+	try {
+		const { params, body, files } = req;
+		const { type } = params;
+		if (!type) throw createHttpError(400, "Type is required in params");
+
+		let imgsFromBody = [];
+		if (body.imgs) {
+			try {
+				const parsed =
+					typeof body.imgs === "string" ? JSON.parse(body.imgs) : body.imgs;
+				imgsFromBody = Array.isArray(parsed) ? parsed : [parsed];
+			} catch {
+				imgsFromBody = [body.imgs];
+			}
+		}
+
+		const bodyItems = imgsFromBody.map((url) => ({
+			url,
+			publicId: null,
+			resourceType: "image",
+		}));
+
+		let uploadedItems = [];
+		if (files?.length) {
+			uploadedItems =
+				env("ENABLE_CLOUDINARY") === "true"
+					? await Promise.all(files.map(saveFileToCloudinaryModified))
+					: await Promise.all(files.map(saveFileToUploadDir));
+		}
+
+		const itemsToSave = [...bodyItems, ...uploadedItems];
+
+		if (!itemsToSave.length) {
+			const current = await getMediaByTypeService(type);
+			return res.json({
+				status: 200,
+				message: "No new images provided",
+				data: mapMediaToClient(current),
+			});
+		}
+
+		const updated = await addMediaToGalleryService(type, itemsToSave);
+
+		res.json({
+			status: 200,
+			message: "Images added",
+			data: mapMediaToClient(updated),
+		});
+	} catch (err) {
+		next(err);
+	}
+};
+
 export const deleteMediaByUrlController = async (req, res, next) => {
 	try {
 		const { type } = req.params;
 		let urls = [];
 
-		if (req.query.url) {
-			urls = [req.query.url];
-		} else if (req.body.url) {
-			urls = [req.body.url];
-		} else if (req.body.urls) {
+		if (req.query.url) urls = [req.query.url];
+		else if (req.body.url) urls = [req.body.url];
+		else if (req.body.urls) {
 			try {
 				urls =
 					typeof req.body.urls === "string"
@@ -95,15 +96,17 @@ export const deleteMediaByUrlController = async (req, res, next) => {
 			}
 		}
 
-		if (!urls || urls.length === 0) {
+		if (!urls.length)
 			throw createHttpError(400, "Provide 'url' or 'urls' to delete");
-		}
 
 		const updated = await removeMediaByUrlsService(type, urls);
 		if (!updated) throw createHttpError(404, "Gallery not found");
 
-		// Примітка: тут НЕ видаляються файли з Cloudinary/диску. Якщо потрібно — дописати видалення по public_id.
-		res.json({ status: 200, message: "Images removed", data: updated });
+		res.json({
+			status: 200,
+			message: "Images removed",
+			data: mapMediaToClient(updated),
+		});
 	} catch (err) {
 		next(err);
 	}

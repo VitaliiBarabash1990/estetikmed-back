@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.get("/", ctrlWrapper(getMediaController));
 
-// Додати картинки (multipart files або body.imgs (URL-и))
+// Додати картинки (multipart files або body.imgs)
 router.patch(
 	"/:type",
 	upload.array("imgs", 50),

@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { CLOUDINARY } from "../constants/index.js";
 import { env } from "./env.js";
 
+// Налаштування Cloudinary
 cloudinary.v2.config({
 	secure: true,
 	cloud_name: env(CLOUDINARY.CLOUD_NAME),
@@ -22,7 +23,11 @@ export const saveFileToCloudinaryModified = async (file) => {
 
 		await fs.unlink(file.path);
 
-		return response.secure_url;
+		return {
+			url: response.secure_url,
+			publicId: response.public_id,
+			resourceType: isVideo ? "video" : "image",
+		};
 	} catch (err) {
 		console.error("❌ Cloudinary upload error:", err);
 		throw err;
