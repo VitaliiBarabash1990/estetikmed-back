@@ -36,8 +36,8 @@ router.post(
 );
 
 router.post(
-	"/send-order-telegram",
-	jsonParser,
+	"/send-telegram",
+	upload.single("file"), // ✅ ТЕ САМЕ, ЩО В send-email
 	ctrlWrapper(sendTelegramController)
 );
 

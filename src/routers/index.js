@@ -3,7 +3,6 @@ import authRouter from "./auth.js";
 import servicesRouter from "./services.js";
 import articlesRouter from "./articles.js";
 import reviewsRouter from "./reviews.js";
-import galleryRouter from "./gallery.js";
 import mediaRouter from "./media.js";
 import { authenticate } from "../middlewares/authenticate.js";
 
@@ -16,8 +15,6 @@ router.use("/services", servicesRouter);
 router.use("/articles", articlesRouter);
 
 router.use("/reviews", reviewsRouter);
-
-router.use("/gallery", galleryRouter);
 
 router.use("/media", mediaRouter);
 

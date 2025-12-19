@@ -1,27 +1,28 @@
 import createHttpError from "http-errors";
+import { env } from "../utils/env.js";
 import { saveFileToUploadDir } from "../utils/saveFileToUploadDir.js";
 import { saveFileToCloudinary } from "../utils/saveFileToCloudinary.js";
-import { env } from "../utils/env.js";
+import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
 import {
 	createReviewsService,
 	deleteReviewsService,
 	getAllReviewsService,
 	updateReviewsService,
+	getReviewsByIdService,
 } from "../services/reviews.js";
+import { getPublicIdFromUrl } from "../utils/getPublicIdFromUrl.js";
 
 export const getReviewsController = async (req, res) => {
-	const about = await getAllReviewsService();
+	const docs = await getAllReviewsService();
 
 	res.json({
 		status: 200,
 		message: "Successfully found reviews!",
-		data: about,
+		data: docs,
 	});
 };
 
-// Створення
 export const createReviewsController = async (req, res, next) => {
-	console.log("Data", req.body);
 	try {
 		const { body, file } = req;
 
@@ -29,15 +30,10 @@ export const createReviewsController = async (req, res, next) => {
 			throw createHttpError(400, "Image is required");
 		}
 
-		let imgUrl;
-
-		if (file) {
-			if (env("ENABLE_CLOUDINARY") === "true") {
-				imgUrl = await saveFileToCloudinary(file);
-			} else {
-				imgUrl = await saveFileToUploadDir(file);
-			}
-		}
+		const img =
+			env("ENABLE_CLOUDINARY") === "true"
+				? await saveFileToCloudinary(file)
+				: await saveFileToUploadDir(file);
 
 		const payload = {
 			pl: {
@@ -52,7 +48,7 @@ export const createReviewsController = async (req, res, next) => {
 				reviews: body.reviewsDe,
 				answers: body.answersDe,
 			},
-			img: imgUrl,
+			img,
 		};
 
 		const doc = await createReviewsService(payload);
@@ -71,12 +67,21 @@ export const patchReviewsController = async (req, res, next) => {
 	try {
 		const { body, file, params } = req;
 
-		let finalImg = body.img; // це або string (URL), або новий файл буде в req.file
+		const current = await getReviewsByIdService(params.id);
+		if (!current) throw createHttpError(404, "Reviews not found");
 
-		// Якщо прийшов новий файл — зберігти
+		let finalImg = current.img;
+
 		if (file) {
+			if (env("ENABLE_CLOUDINARY") === "true" && current.img) {
+				const publicId = getPublicIdFromUrl(current.img);
+				if (publicId) {
+					await deleteFromCloudinary(publicId, "image");
+				}
+			}
+
 			finalImg =
-				process.env.ENABLE_CLOUDINARY === "true"
+				env("ENABLE_CLOUDINARY") === "true"
 					? await saveFileToCloudinary(file)
 					: await saveFileToUploadDir(file);
 		}
@@ -99,7 +104,7 @@ export const patchReviewsController = async (req, res, next) => {
 
 		const updated = await updateReviewsService(params.id, payload);
 
-		res.status(200).json({
+		res.json({
 			status: 200,
 			message: "Updated successfully",
 			data: updated,
@@ -110,14 +115,23 @@ export const patchReviewsController = async (req, res, next) => {
 };
 
 export const deleteReviewsController = async (req, res, next) => {
-	const { id } = req.params;
+	try {
+		const { id } = req.params;
 
-	const article = await deleteReviewsService(id);
+		const doc = await getReviewsByIdService(id);
+		if (!doc) throw createHttpError(404, "Reviews not found");
 
-	if (!article) {
-		next(createHttpError(404, `Reviews not found`));
-		return;
+		if (env("ENABLE_CLOUDINARY") === "true" && doc.img) {
+			const publicId = getPublicIdFromUrl(doc.img);
+			if (publicId) {
+				await deleteFromCloudinary(publicId, "image");
+			}
+		}
+
+		await deleteReviewsService(id);
+
+		res.status(204).send();
+	} catch (error) {
+		next(error);
 	}
-
-	res.status(204).send();
 };

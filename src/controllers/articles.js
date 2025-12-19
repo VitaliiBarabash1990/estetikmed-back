@@ -1,27 +1,30 @@
 import createHttpError from "http-errors";
+import { env } from "../utils/env.js";
 import { saveFileToUploadDir } from "../utils/saveFileToUploadDir.js";
 import { saveFileToCloudinary } from "../utils/saveFileToCloudinary.js";
-import { env } from "../utils/env.js";
+import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
+import { getCloudinaryPublicId } from "../utils/getCloudinaryPublicId.js";
+
 import {
 	createArticlesService,
 	deleteArticlesService,
 	getAllArticlesService,
 	updateArticlesService,
+	getArticleByIdService,
 } from "../services/articles.js";
 
 export const getArticlesController = async (req, res) => {
-	const about = await getAllArticlesService();
+	const articles = await getAllArticlesService();
 
 	res.json({
 		status: 200,
 		message: "Successfully found articles!",
-		data: about,
+		data: articles,
 	});
 };
 
-// Створення
+// CREATE
 export const createArticlesController = async (req, res, next) => {
-	console.log("Data", req.body);
 	try {
 		const { body, file } = req;
 
@@ -29,15 +32,10 @@ export const createArticlesController = async (req, res, next) => {
 			throw createHttpError(400, "Image is required");
 		}
 
-		let imgUrl;
-
-		if (file) {
-			if (env("ENABLE_CLOUDINARY") === "true") {
-				imgUrl = await saveFileToCloudinary(file);
-			} else {
-				imgUrl = await saveFileToUploadDir(file);
-			}
-		}
+		const img =
+			env("ENABLE_CLOUDINARY") === "true"
+				? await saveFileToCloudinary(file)
+				: await saveFileToUploadDir(file);
 
 		const payload = {
 			pl: {
@@ -48,7 +46,7 @@ export const createArticlesController = async (req, res, next) => {
 				title: body.titleDe,
 				article: body.articleDe,
 			},
-			img: imgUrl,
+			img,
 		};
 
 		const doc = await createArticlesService(payload);
@@ -63,16 +61,30 @@ export const createArticlesController = async (req, res, next) => {
 	}
 };
 
+// PATCH
 export const patchArticlesController = async (req, res, next) => {
 	try {
 		const { body, file, params } = req;
 
-		let finalImg = body.img; // це або string (URL), або новий файл буде в req.file
+		const existing = await getArticleByIdService(params.id);
+		if (!existing) {
+			throw createHttpError(404, "Article not found");
+		}
 
-		// Якщо прийшов новий файл — зберігти
+		let finalImg = existing.img;
+
 		if (file) {
+			// DELETE OLD IMAGE
+			if (env("ENABLE_CLOUDINARY") === "true" && existing.img) {
+				const publicId = getCloudinaryPublicId(existing.img);
+				if (publicId) {
+					await deleteFromCloudinary(publicId, "image");
+				}
+			}
+
+			// SAVE NEW IMAGE
 			finalImg =
-				process.env.ENABLE_CLOUDINARY === "true"
+				env("ENABLE_CLOUDINARY") === "true"
 					? await saveFileToCloudinary(file)
 					: await saveFileToUploadDir(file);
 		}
@@ -91,7 +103,7 @@ export const patchArticlesController = async (req, res, next) => {
 
 		const updated = await updateArticlesService(params.id, payload);
 
-		res.status(200).json({
+		res.json({
 			status: 200,
 			message: "Updated successfully",
 			data: updated,
@@ -101,15 +113,27 @@ export const patchArticlesController = async (req, res, next) => {
 	}
 };
 
+// DELETE
 export const deleteArticlesController = async (req, res, next) => {
-	const { id } = req.params;
+	try {
+		const { id } = req.params;
 
-	const article = await deleteArticlesService(id);
+		const article = await getArticleByIdService(id);
+		if (!article) {
+			throw createHttpError(404, "Article not found");
+		}
 
-	if (!article) {
-		next(createHttpError(404, `Article not found`));
-		return;
+		if (env("ENABLE_CLOUDINARY") === "true" && article.img) {
+			const publicId = getCloudinaryPublicId(article.img);
+			if (publicId) {
+				await deleteFromCloudinary(publicId, "image");
+			}
+		}
+
+		await deleteArticlesService(id);
+
+		res.status(204).send();
+	} catch (error) {
+		next(error);
 	}
-
-	res.status(204).send();
 };

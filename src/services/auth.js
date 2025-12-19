@@ -3,8 +3,14 @@ import bcrypt from "bcrypt";
 import createHttpError from "http-errors";
 import { UsersCollection } from "../db/models/user.js";
 
-import { FIFTEEN_MINUTES, ONE_DAY } from "../constants/index.js";
+import { FIFTEEN_MINUTES, ONE_DAY, TEMPLATES_DIR } from "../constants/index.js";
 import { SessionsCollection } from "../db/models/session.js";
+import { sendTelegramMessage, sendTelegramFile } from "../utils/telegram.js";
+import { sendEmail } from "../utils/sendMail.js";
+import handlebars from "handlebars";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { env } from "../utils/env.js";
 
 export const adminLoginService = async (payload) => {
 	const user = await UsersCollection.findOne({ email: payload.email });
@@ -97,4 +103,102 @@ export const createSession = () => {
 		accessTokenValidUntil: new Date(Date.now() + FIFTEEN_MINUTES),
 		refreshTokenValidUntil: new Date(Date.now() + ONE_DAY),
 	};
+};
+
+export const requestSendBody = async ({
+	name,
+	phone,
+	email,
+	message,
+	file,
+}) => {
+	const templatePath = path.join(TEMPLATES_DIR, "order-confirmation.html");
+	const templateSource = await fs.readFile(templatePath, "utf-8");
+	const template = handlebars.compile(templateSource);
+
+	const html = template({ name, phone, email, message });
+
+	let attachments = [];
+
+	let tempFilePath = null;
+
+	if (file) {
+		tempFilePath = file.path;
+
+		const fileBuffer = await fs.readFile(tempFilePath);
+
+		attachments.push({
+			filename: file.originalname,
+			content: fileBuffer,
+			contentType: file.mimetype,
+		});
+	}
+
+	try {
+		await sendEmail({
+			from: env("SMTP_FROM"),
+			to: env("SMTP_FROM"),
+			subject: "Новый заказ с сайта estetic-med!",
+			html,
+			attachments,
+		});
+	} finally {
+		// Видаляємо файл у будь-якому випадку (успіх / помилка)
+		if (tempFilePath) {
+			try {
+				await fs.unlink(tempFilePath);
+				console.log("Temporary file removed:", tempFilePath);
+			} catch (err) {
+				console.warn("Failed to delete temp file:", err);
+			}
+		}
+	}
+};
+
+export const requestSendTelegram = async ({
+	name,
+	phone,
+	email,
+	message,
+	file,
+}) => {
+	let tempFilePath;
+
+	try {
+		// 1️⃣ Формуємо текст повідомлення
+		let text = `<b>📨 Новый заказ с сайта estetic-med!</b>\n\n`;
+		text += `👤 Клиент: ${name}\n`;
+		text += `📞 Телефон: ${phone}\n`;
+		text += `✉️ Email: ${email}\n\n`;
+		text += `💬 Сообщение:\n${message}`;
+
+		// 2️⃣ Надсилаємо текст
+		await sendTelegramMessage(env("TELEGRAM_CHAT_ID"), text);
+
+		// 3️⃣ Надсилаємо файл (якщо є)
+		if (file) {
+			tempFilePath = file.path;
+
+			try {
+				await sendTelegramFile(
+					env("TELEGRAM_CHAT_ID"),
+					tempFilePath,
+					file.originalname
+				);
+			} catch (err) {
+				console.error("❌ Помилка надсилання файлу в Telegram:", err);
+				throw err;
+			}
+		}
+	} finally {
+		// 4️⃣ Завжди видаляємо тимчасовий файл
+		if (tempFilePath) {
+			try {
+				await fs.unlink(tempFilePath);
+				console.log("Temporary file removed:", tempFilePath);
+			} catch (err) {
+				console.warn("Failed to delete temp file:", tempFilePath, err);
+			}
+		}
+	}
 };

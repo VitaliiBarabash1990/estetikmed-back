@@ -1,45 +1,21 @@
-// services/mainService.ts
-
 import { ServicesCollection } from "../db/models/services.js";
 
 export const createServicesService = async (payload) => {
-	const doc = await ServicesCollection.create(payload);
-	return doc;
+	return ServicesCollection.create(payload);
 };
 
 export const updateServicesService = async (id, payload) => {
-	const doc = await ServicesCollection.findByIdAndUpdate(id, payload, {
-		new: true,
-	});
-	return doc;
+	return ServicesCollection.findByIdAndUpdate(id, payload, { new: true });
 };
 
-// Всі документи
 export const getAllServicesService = async () => {
-	const docs = await ServicesCollection.find();
-	return docs;
+	return ServicesCollection.find();
 };
 
-// Один документ
 export const getServicesByIdService = async (id) => {
-	const doc = await ServicesCollection.findById(id);
-	return doc;
+	return ServicesCollection.findById(id);
 };
 
-// Видалення
 export const deleteServicesService = async (id) => {
-	await ServicesCollection.findByIdAndDelete(id);
-	return true;
-};
-
-export const updateServices = async (payload) => {
-	const { id, ...item } = payload;
-
-	const updatedCategory = await ServicesCollection.findByIdAndUpdate(
-		id,
-		{ ...item },
-		{ new: true } // Повертає оновлений документ
-	);
-
-	return updatedCategory;
+	return ServicesCollection.findByIdAndDelete(id);
 };

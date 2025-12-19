@@ -1,13 +1,24 @@
 import TelegramBot from "node-telegram-bot-api";
+import fs from "node:fs";
 import { env } from "./env.js";
 
-const bot = new TelegramBot(env("TELEGRAM_BOT_TOKEN"), { polling: false });
+const bot = new TelegramBot(env("TELEGRAM_BOT_TOKEN"), {
+	polling: false,
+});
 
 export const sendTelegramMessage = async (chatId, message) => {
-	try {
-		await bot.sendMessage(chatId, message, { parse_mode: "HTML" });
-	} catch (err) {
-		console.error("❌ Помилка надсилання в Telegram:", err);
-		throw err;
-	}
+	await bot.sendMessage(chatId, message, {
+		parse_mode: "HTML",
+	});
+};
+
+export const sendTelegramFile = async (chatId, filePath, filename) => {
+	await bot.sendDocument(
+		chatId,
+		fs.createReadStream(filePath),
+		{},
+		{
+			filename,
+		}
+	);
 };

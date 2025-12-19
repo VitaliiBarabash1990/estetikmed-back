@@ -2,9 +2,10 @@ import {
 	logoutUser,
 	adminLoginService,
 	registerUser,
+	requestSendTelegram,
+	requestSendBody,
 } from "../services/auth.js";
 import { ONE_DAY } from "../constants/index.js";
-import { requestSendBody } from "./services.js";
 
 export const adminLoginController = async (req, res) => {
 	const session = await adminLoginService(req.body);
@@ -65,8 +66,6 @@ const setupSession = (res, session) => {
 };
 
 export const logoutUserController = async (req, res) => {
-	console.log("RequestBody", req.body);
-	console.log("RequestSesionId", req.cookies.sessionId);
 	if (req.cookies.sessionId) {
 		await logoutUser(req.cookies.sessionId);
 	}
@@ -107,11 +106,26 @@ export const sendEmailController = async (req, res) => {
 };
 
 export const sendTelegramController = async (req, res) => {
-	console.log(req.body);
-	await requestSendTelegram(req.body); // передаємо весь об'єкт
+	const { name, phone, email, message } = req.body;
+	const file = req.file;
+
+	if (!name || !phone || !email || !message) {
+		throw createHttpError(
+			400,
+			"Поля name, phone, email, message є обовʼязковими"
+		);
+	}
+
+	await requestSendTelegram({
+		name,
+		phone,
+		email,
+		message,
+		file,
+	});
+
 	res.json({
-		message: "Order was successfully sent to email!",
 		status: 200,
-		data: {},
+		message: "Order was successfully sent to telegram!",
 	});
 };
