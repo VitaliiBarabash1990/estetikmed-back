@@ -7,6 +7,7 @@ import {
 	sendEmailController,
 	sendTelegramController,
 	registerUserController,
+	refreshUserSessionController,
 } from "../controllers/auth.js";
 import { validateBody } from "../middlewares/validateBody.js";
 import { upload } from "../middlewares/multerSend.js";
@@ -28,6 +29,8 @@ router.post(
 );
 
 router.post("/logout", ctrlWrapper(logoutUserController));
+
+router.post("/refresh", ctrlWrapper(refreshUserSessionController));
 
 router.post(
 	"/send-email",

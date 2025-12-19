@@ -93,6 +93,42 @@ export const logoutUser = async (sessionId) => {
 	await SessionsCollection.deleteOne({ _id: sessionId });
 };
 
+export const refreshUsersSession = async ({ sessionId, refreshToken }) => {
+	const session = await SessionsCollection.findOne({
+		_id: sessionId,
+		refreshToken,
+	});
+
+	if (!session) {
+		throw createHttpError(401, "Session not found");
+	}
+
+	const isSessionTokenExpired =
+		new Date() > new Date(session.refreshTokenValidUntil);
+
+	if (isSessionTokenExpired) {
+		throw createHttpError(401, "Session token expired");
+	}
+
+	// Генеруємо нові токени (функція повинна повертати об'єкт з токенами і датами)
+	const {
+		accessToken,
+		refreshToken: newRefreshToken,
+		accessTokenValidUntil,
+		refreshTokenValidUntil,
+	} = createSession();
+
+	// Оновлюємо існуючу сесію
+	session.accessToken = accessToken;
+	session.refreshToken = newRefreshToken;
+	session.accessTokenValidUntil = accessTokenValidUntil;
+	session.refreshTokenValidUntil = refreshTokenValidUntil;
+
+	await session.save();
+
+	return session;
+};
+
 export const createSession = () => {
 	const accessToken = randomBytes(30).toString("base64");
 	const refreshToken = randomBytes(30).toString("base64");

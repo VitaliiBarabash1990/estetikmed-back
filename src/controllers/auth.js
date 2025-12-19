@@ -4,6 +4,7 @@ import {
 	registerUser,
 	requestSendTelegram,
 	requestSendBody,
+	refreshUsersSession,
 } from "../services/auth.js";
 import { ONE_DAY } from "../constants/index.js";
 
@@ -34,18 +35,6 @@ export const adminLoginController = async (req, res) => {
 	});
 };
 
-export const registerUserController = async (req, res) => {
-	const { user, session } = await registerUser(req.body);
-
-	setupSession(res, session);
-
-	res.status(201).json({
-		status: 201,
-		message: "Successfully registered a user!",
-		data: user,
-	});
-};
-
 const setupSession = (res, session) => {
 	res.cookie("refreshToken", session.refreshToken.toString(), {
 		httpOnly: true,
@@ -65,6 +54,18 @@ const setupSession = (res, session) => {
 	});
 };
 
+export const registerUserController = async (req, res) => {
+	const { user, session } = await registerUser(req.body);
+
+	setupSession(res, session);
+
+	res.status(201).json({
+		status: 201,
+		message: "Successfully registered a user!",
+		data: user,
+	});
+};
+
 export const logoutUserController = async (req, res) => {
 	if (req.cookies.sessionId) {
 		await logoutUser(req.cookies.sessionId);
@@ -73,6 +74,27 @@ export const logoutUserController = async (req, res) => {
 	res.clearCookie("refreshToken");
 
 	res.status(204).send();
+};
+
+export const refreshUserSessionController = async (req, res) => {
+	const session = await refreshUsersSession({
+		sessionId: req.cookies.sessionId,
+		refreshToken: req.cookies.refreshToken,
+	});
+
+	// console.log("Session from DB:", session._id.toString(), session.refreshToken);
+
+	setupSession(res, session);
+	// console.log("Cookies:", req.cookies);
+	// console.log("sessionId:", req.cookies?.sessionId);
+
+	res.json({
+		status: 200,
+		message: "Successfully refreshed a session!",
+		data: {
+			accessToken: session.accessToken,
+		},
+	});
 };
 
 export const sendEmailController = async (req, res) => {
