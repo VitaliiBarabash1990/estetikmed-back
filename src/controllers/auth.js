@@ -7,6 +7,7 @@ import {
 	refreshUsersSession,
 } from "../services/auth.js";
 import { ONE_DAY } from "../constants/index.js";
+import { UsersCollection } from "../db/models/user.js";
 
 export const adminLoginController = async (req, res) => {
 	const session = await adminLoginService(req.body);
@@ -82,17 +83,20 @@ export const refreshUserSessionController = async (req, res) => {
 		refreshToken: req.cookies.refreshToken,
 	});
 
-	// console.log("Session from DB:", session._id.toString(), session.refreshToken);
+	const user = await UsersCollection.findById(session.userId).select(
+		"user email role"
+	);
 
 	setupSession(res, session);
-	// console.log("Cookies:", req.cookies);
-	// console.log("sessionId:", req.cookies?.sessionId);
 
 	res.json({
 		status: 200,
 		message: "Successfully refreshed a session!",
 		data: {
 			accessToken: session.accessToken,
+			user: user.user,
+			email: user.email,
+			role: user.role,
 		},
 	});
 };

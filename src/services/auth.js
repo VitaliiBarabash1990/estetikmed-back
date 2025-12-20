@@ -103,14 +103,12 @@ export const refreshUsersSession = async ({ sessionId, refreshToken }) => {
 		throw createHttpError(401, "Session not found");
 	}
 
-	const isSessionTokenExpired =
-		new Date() > new Date(session.refreshTokenValidUntil);
-
-	if (isSessionTokenExpired) {
-		throw createHttpError(401, "Session token expired");
+	// ✅ accessToken ще валідний — просто повертаємо його
+	if (new Date() < new Date(session.accessTokenValidUntil)) {
+		return session;
 	}
 
-	// Генеруємо нові токени (функція повинна повертати об'єкт з токенами і датами)
+	// 🔄 accessToken протух — оновлюємо
 	const {
 		accessToken,
 		refreshToken: newRefreshToken,
@@ -118,7 +116,6 @@ export const refreshUsersSession = async ({ sessionId, refreshToken }) => {
 		refreshTokenValidUntil,
 	} = createSession();
 
-	// Оновлюємо існуючу сесію
 	session.accessToken = accessToken;
 	session.refreshToken = newRefreshToken;
 	session.accessTokenValidUntil = accessTokenValidUntil;

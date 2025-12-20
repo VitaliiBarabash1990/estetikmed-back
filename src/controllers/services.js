@@ -71,13 +71,15 @@ export const createServicesController = async (req, res, next) => {
 };
 
 export const patchServicesController = async (req, res, next) => {
+	console.log("BODY:", req.body);
+	console.log("FILES:", req.files);
 	try {
 		const { body, files = [], params } = req;
 
 		const current = await getServicesByIdService(params.id);
 		if (!current) throw createHttpError(404, "Services not found");
 
-		// 1️⃣ картинки які фронт залишив
+		// 1️⃣ картинки, які залишили з фронта
 		let existingImgs = [];
 		try {
 			existingImgs =
@@ -89,7 +91,7 @@ export const patchServicesController = async (req, res, next) => {
 			existingImgs = [];
 		}
 
-		// 2️⃣ видаляємо зайві з Cloudinary
+		// 2️⃣ видалення з Cloudinary
 		if (env("ENABLE_CLOUDINARY") === "true") {
 			const removed = current.imgs.filter((img) => !existingImgs.includes(img));
 
@@ -101,23 +103,24 @@ export const patchServicesController = async (req, res, next) => {
 			);
 		}
 
-		// 3️⃣ зберігаємо нові файли
+		// 3️⃣ нові файли
 		const newImgs =
 			env("ENABLE_CLOUDINARY") === "true"
 				? await Promise.all(files.map(saveFileToCloudinary))
 				: await Promise.all(files.map(saveFileToUploadDir));
 
+		// 4️⃣ payload БЕЗ undefined
 		const payload = {
 			pl: {
-				name: body.namePl,
-				description: body.descriptionPl,
+				name: body.namePl ?? current.pl.name,
+				description: body.descriptionPl ?? current.pl.description,
 			},
 			de: {
-				name: body.nameDe,
-				description: body.descriptionDe,
+				name: body.nameDe ?? current.de.name,
+				description: body.descriptionDe ?? current.de.description,
 			},
-			price: Number(body.price),
-			type: body.type,
+			price: body.price !== undefined ? Number(body.price) : current.price,
+			type: body.type ?? current.type,
 			imgs: [...existingImgs, ...newImgs],
 		};
 
