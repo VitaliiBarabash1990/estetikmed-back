@@ -21,6 +21,10 @@ const setupServer = () => {
 	const allowedOrigins = [
 		"http://localhost:3000",
 		"https://estetikmed.vercel.app",
+		"https://estetikmed.pl",
+		"http://estetikmed.pl",
+		"https://www.estetikmed.pl",
+		"http://www.estetikmed.pl",
 	];
 
 	app.use(
