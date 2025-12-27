@@ -17,6 +17,7 @@ export const adminLoginController = async (req, res) => {
 		expires: new Date(Date.now() + ONE_DAY),
 		sameSite: "none",
 		secure: true,
+		domain: ".estetikmed.pl",
 		// sameSite: "Lax",
 		// secure: false,
 	});
@@ -25,6 +26,7 @@ export const adminLoginController = async (req, res) => {
 		expires: new Date(Date.now() + ONE_DAY),
 		sameSite: "none",
 		secure: true,
+		domain: ".estetikmed.pl",
 		// sameSite: "Lax",
 		// secure: false,
 	});
@@ -42,6 +44,7 @@ const setupSession = (res, session) => {
 		expires: new Date(Date.now() + ONE_DAY),
 		sameSite: "none",
 		secure: true,
+		domain: ".estetikmed.pl",
 		// sameSite: "lax",
 		// secure: false,
 	});
@@ -50,6 +53,7 @@ const setupSession = (res, session) => {
 		expires: new Date(Date.now() + ONE_DAY),
 		sameSite: "none",
 		secure: true,
+		domain: ".estetikmed.pl",
 		// sameSite: "lax",
 		// secure: false,
 	});
@@ -71,8 +75,8 @@ export const logoutUserController = async (req, res) => {
 	if (req.cookies.sessionId) {
 		await logoutUser(req.cookies.sessionId);
 	}
-	res.clearCookie("sessionId");
-	res.clearCookie("refreshToken");
+	res.clearCookie("sessionId", { domain: ".estetikmed.pl" });
+	res.clearCookie("refreshToken", { domain: ".estetikmed.pl" });
 
 	res.status(204).send();
 };
